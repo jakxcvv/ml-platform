@@ -1,0 +1,297 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Platform - Главный дашборд</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+        body { background: #f5f7fa; color: #333; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        h1 { font-size: 32px; margin-bottom: 10px; }
+        .subtitle { opacity: 0.9; font-size: 16px; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card h3 { color: #666; font-size: 14px; text-transform: uppercase; margin-bottom: 10px; }
+        .stat-card .value { font-size: 42px; font-weight: bold; color: #2c3e50; }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+        }
+        
+        .main-content, .widget {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .sidebar { display: flex; flex-direction: column; gap: 25px; }
+        
+        h2 { 
+            color: #2c3e50; 
+            margin-bottom: 20px; 
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th { background: #f8f9fa; font-weight: 600; color: #555; }
+        
+        .status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-created { background: #f0ad4e; color: white; }
+        .status-running { background: #5bc0de; color: white; }
+        .status-completed { background: #5cb85c; color: white; }
+        
+        .metric-badge {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 10px;
+            margin: 2px;
+            font-size: 11px;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 ML Platform - Панель управления</h1>
+            <p class="subtitle">Система для создания и тестирования алгоритмов машинного обучения</p>
+            <p>Текущее время: {{ current_time }}</p>
+        </header>
+        
+        <!-- Статистика -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Проектов</h3>
+                <div class="value">{{ stats.total_projects }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Экспериментов</h3>
+                <div class="value">{{ stats.total_experiments }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Завершено</h3>
+                <div class="value">{{ stats.completed_experiments }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Выполняется</h3>
+                <div class="value">{{ stats.running_experiments }}</div>
+            </div>
+        </div>
+        
+        <!-- Быстрые действия -->
+        <div class="action-buttons">
+            <a href="/project/create" class="btn">📁 Создать проект</a>
+            <a href="/experiment/create" class="btn">🔬 Создать эксперимент</a>
+            <a href="/visualization" class="btn">📊 Визуализация</a>
+            <button onclick="refreshDashboard()" class="btn">🔄 Обновить</button>
+        </div>
+        
+        <div class="content-grid">
+            <!-- Основной контент -->
+            <div class="main-content">
+                <h2>📁 Последние проекты</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Описание</th>
+                            <th>Статус</th>
+                            <th>Экспериментов</th>
+                            <th>Дата</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in projects[:5] %}
+                        <tr>
+                            <td><a href="/project/{{ project.id }}">{{ project.name }}</a></td>
+                            <td>{{ project.description[:50] }}...</td>
+                            <td><span class="status status-{{ project.status }}">{{ project.status }}</span></td>
+                            <td>{{ project.experiments|length }}</td>
+                            <td>{{ project.created_at.strftime('%d.%m.%Y') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <h2 style="margin-top: 30px;">🔬 Последние эксперименты</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Алгоритм</th>
+                            <th>Статус</th>
+                            <th>Метрики</th>
+                            <th>Проект</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for exp in experiments %}
+                        <tr>
+                            <td><a href="/experiment/{{ exp.id }}">{{ exp.name }}</a></td>
+                            <td>{{ exp.algorithm }}</td>
+                            <td><span class="status status-{{ exp.status }}">{{ exp.status }}</span></td>
+                            <td>
+                                {% for name, value in exp.metrics.items() %}
+                                <span class="metric-badge">{{ name }}: {{ value }}</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for p in projects %}
+                                    {% if p.id == exp.project_id %}
+                                        {{ p.name[:20] }}...
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Боковая панель -->
+            <div class="sidebar">
+                <div class="widget">
+                    <h2>📈 Активность системы</h2>
+                    <div class="chart-container">
+                        <canvas id="activityChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="widget">
+                    <h2>🏆 Лучшие метрики</h2>
+                    <div id="best-metrics">
+                        {% for exp in experiments %}
+                            {% if exp.metrics %}
+                                <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                                    <strong>{{ exp.name[:20] }}...</strong><br>
+                                    <small>Accuracy: {{ exp.metrics.get('accuracy', 0) }}</small>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="widget">
+                    <h2>📋 Обученные модели</h2>
+                    {% for model in models %}
+                    <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                        <strong>{{ model.name }}</strong><br>
+                        <small>Версия: {{ model.version }}</small><br>
+                        <small>Статус: {{ model.deployment_status or 'Не развернута' }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Инициализация графика активности
+        const ctx = document.getElementById('activityChart').getContext('2d');
+        const activityChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+                datasets: [{
+                    label: 'Запущено экспериментов',
+                    data: [3, 5, 2, 8, 6, 4, 7],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+        
+        function refreshDashboard() {
+            location.reload();
+        }
+        
+        // Автообновление каждые 30 секунд
+        setInterval(refreshDashboard, 30000);
+    </script>
+</body>
+</html>

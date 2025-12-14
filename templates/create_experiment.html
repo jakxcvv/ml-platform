@@ -1,0 +1,234 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание эксперимента - ML Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+        body { background: #f5f7fa; color: #333; padding: 20px; }
+        .container { max-width: 800px; margin: 50px auto; }
+        
+        .form-card {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        h1 { 
+            color: #2c3e50; 
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-weight: 600;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-start {
+            background: #28a745;
+            margin-top: 10px;
+        }
+        
+        .btn-back {
+            background: #6c757d;
+            margin-top: 15px;
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-card">
+            <h1>🔬 Создание нового эксперимента</h1>
+            
+            <div id="message" class="message"></div>
+            
+            <form id="experimentForm">
+                <div class="form-group">
+                    <label for="name">Название эксперимента *</label>
+                    <input type="text" id="name" name="name" required 
+                           placeholder="Например: XGBoost с подбором гиперпараметров">
+                </div>
+                
+                <div class="form-group">
+                    <label for="project_id">Проект *</label>
+                    <select id="project_id" name="project_id" required>
+                        <option value="">Выберите проект</option>
+                        {% for project in projects %}
+                        <option value="{{ project.id }}">{{ project.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="algorithm">Алгоритм *</label>
+                    <select id="algorithm" name="algorithm" required>
+                        <option value="">Выберите алгоритм</option>
+                        <option value="XGBoost">XGBoost</option>
+                        <option value="Random Forest">Random Forest</option>
+                        <option value="LightGBM">LightGBM</option>
+                        <option value="CatBoost">CatBoost</option>
+                        <option value="Logistic Regression">Logistic Regression</option>
+                        <option value="Neural Network">Neural Network</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="dataset">Датасет *</label>
+                    <select id="dataset" name="dataset" required>
+                        <option value="">Выберите датасет</option>
+                        <option value="customer_data.csv">Данные клиентов (CSV)</option>
+                        <option value="fraud_data.csv">Данные мошенничества (CSV)</option>
+                        <option value="sales_data.csv">Данные продаж (CSV)</option>
+                        <option value="images_dataset.zip">Набор изображений (ZIP)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="hyperparameters">Гиперпараметры (JSON)</label>
+                    <textarea id="hyperparameters" name="hyperparameters" 
+                              placeholder='{"learning_rate": 0.1, "max_depth": 6, "n_estimators": 100}'></textarea>
+                </div>
+                
+                <button type="submit" class="btn">Создать эксперимент</button>
+                <button type="button" id="startTrainingBtn" class="btn btn-start" style="display: none;">
+                    🚀 Запустить обучение
+                </button>
+                <a href="/" class="btn btn-back">← Назад к дашборду</a>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let currentExperimentId = null;
+        
+        document.getElementById('experimentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const messageDiv = document.getElementById('message');
+            
+            try {
+                const response = await fetch('/api/experiments', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = `✅ Эксперимент "${result.experiment_name}" успешно создан!`;
+                    messageDiv.style.display = 'block';
+                    
+                    currentExperimentId = result.experiment_id;
+                    
+                    // Показываем кнопку запуска обучения
+                    document.getElementById('startTrainingBtn').style.display = 'block';
+                    
+                    // Прокручиваем к сообщению
+                    messageDiv.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    throw new Error(result.message || 'Ошибка при создании эксперимента');
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = `❌ Ошибка: ${error.message}`;
+                messageDiv.style.display = 'block';
+            }
+        });
+        
+        document.getElementById('startTrainingBtn').addEventListener('click', async function() {
+            if (!currentExperimentId) return;
+            
+            const messageDiv = document.getElementById('message');
+            
+            try {
+                const response = await fetch(`/api/experiments/${currentExperimentId}/start`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.className = 'message success';
+                    messageDiv.innerHTML = `
+                        ✅ Обучение завершено успешно!<br>
+                        📊 Метрики:<br>
+                        ${Object.entries(result.metrics).map(([k, v]) => 
+                            `• ${k}: ${v}<br>`
+                        ).join('')}
+                        <a href="/experiment/${currentExperimentId}" class="btn" style="margin-top: 10px;">
+                            📄 Перейти к деталям эксперимента
+                        </a>
+                    `;
+                    messageDiv.style.display = 'block';
+                    
+                    // Скрываем кнопку запуска
+                    this.style.display = 'none';
+                } else {
+                    throw new Error(result.message || 'Ошибка при запуске обучения');
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = `❌ Ошибка: ${error.message}`;
+                messageDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
